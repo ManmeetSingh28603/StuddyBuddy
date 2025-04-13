@@ -124,13 +124,15 @@ def mcq_generator(request):
 
 # Chat with PDF Upload
 def chat_with_pdf(request):
-    if request.method == "POST" and request.FILES.get("pdf"):
-        pdf_file = request.FILES["pdf"]
-        text = extract_text_from_pdf(pdf_file.read())
-        clean = clean_text(text)
-        request.session['pdf_context'] = clean
-        return JsonResponse({"message": "PDF uploaded successfully", "file_name": pdf_file.name})
+    if request.method == "POST":
+        print("FILES:", request.FILES)  # <-- add this
+        if "pdf" in request.FILES:
+            pdf_file = request.FILES["pdf"]
+            text = extract_text_from_pdf(pdf_file.read())
+            return JsonResponse({"text": text})
+        return JsonResponse({"error": "No file uploaded."}, status=400)
     return render(request, "core/chat-with-pdf.html")
+
 
 # Chat with PDF - Ask Question
 @csrf_exempt

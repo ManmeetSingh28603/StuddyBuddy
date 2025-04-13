@@ -221,6 +221,7 @@
     </div>
 
     <script>
+        document.cookie = "csrftoken={{ csrf_token }}; path=/";
         let pdfInput = document.getElementById("pdfFile");
         let chooseFileBtn = document.getElementById("chooseFileBtn");
         let submitBtn = document.getElementById("submitBtn");
