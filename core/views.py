@@ -85,12 +85,13 @@ def logout(request):
 # Cohere API Setup
 co = cohere.Client(COHERE_API_KEY)
 
-def extract_text_from_pdf(pdf_path):
+def extract_text_from_pdf(pdf_bytes):
     text = ""
-    with fitz.open(pdf_path) as doc:
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
         for page in doc:
             text += page.get_text()
     return text
+
 
 def generate_mcqs_cohere(text):
     prompt = (
@@ -115,23 +116,18 @@ def clean_text(text):
 def mcq_generator(request):
     if request.method == "POST" and request.FILES.get("pdf"):
         pdf_file = request.FILES["pdf"]
-        file_path = default_storage.save("uploads/" + pdf_file.name, pdf_file)
-
-        text = extract_text_from_pdf(file_path)
+        text = extract_text_from_pdf(pdf_file.read())
         mcqs = generate_mcqs_cohere(text)
-
         return JsonResponse({"mcqs": mcqs})
     return render(request, "core/mcq-generator.html")
+
 
 # Chat with PDF Upload
 def chat_with_pdf(request):
     if request.method == "POST" and request.FILES.get("pdf"):
         pdf_file = request.FILES["pdf"]
-        file_path = default_storage.save("uploads/" + pdf_file.name, pdf_file)
-
-        text = extract_text_from_pdf(file_path)
+        text = extract_text_from_pdf(pdf_file.read())
         clean = clean_text(text)
-
         request.session['pdf_context'] = clean
         return JsonResponse({"message": "PDF uploaded successfully", "file_name": pdf_file.name})
     return render(request, "core/chat-with-pdf.html")
