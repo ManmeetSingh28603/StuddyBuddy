@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% load static %}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="{% static 'core/images/logo.ico' %}" type="image/x-icon">
+    <title>MCQ Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            padding: 40px 16px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.07);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 32px;
+            /* increased space below title */
+            font-size: 26px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+
+        .upload-box {
+            border: 2px dashed #3b82f6;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border-radius: 12px;
+            background-color: #f9fafb;
+            cursor: pointer;
+            transition: background-color 0.25s ease;
+        }
+
+        .upload-box:hover {
+            background-color: #eff6ff;
+        }
+
+        .upload-box input[type="file"] {
+            display: none;
+        }
+
+        .file-name {
+            margin-top: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .center {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .btn,
+        .download-btn {
+            background-color: #3b82f6;
+            color: #fff;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.25s ease;
+            margin: 0 8px;
+        }
+
+        .btn:hover,
+        .download-btn:hover {
+            background-color: #2563eb;
+        }
+
+        .btn:disabled {
+            background-color: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .loader {
+            display: none;
+            margin: 25px auto 15px;
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 36px;
+            height: 36px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .progress-bar {
+            display: none;
+            width: 100%;
+            background-color: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            height: 20px;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #3b82f6;
+            color: white;
+            text-align: center;
+            line-height: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: width 0.3s ease;
+        }
+
+        #mcqResults {
+            margin-top: 30px;
+        }
+
+        .mcq-item {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {% csrf_token %}
+    <div class="container">
+        <h2>Upload PDF to Generate MCQs</h2>
+
+        <label class="upload-box" id="uploadBox">
+            Click or Drag & Drop PDF here
+            <input type="file" id="pdfFile" accept=".pdf" />
+            <div class="file-name" id="fileName"></div>
+        </label>
+
+        <div class="center">
+            <button id="submitBtn" class="btn" disabled>Generate MCQs</button>
+            <div class="loader" id="loader"></div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+        </div>
+
+        <div id="mcqResults"></div>
+
+        <div class="center">
+            <button class="download-btn" id="downloadBtn" style="display:none;">Download as PDF</button>
+        </div>
+    </div>
+
+    <script>
+        const pdfInput = document.getElementById("pdfFile");
+        const submitBtn = document.getElementById("submitBtn");
+        const loader = document.getElementById("loader");
+        const progressBar = document.getElementById("progressBar");
+        const progressFill = document.getElementById("progressFill");
+        const mcqResults = document.getElementById("mcqResults");
+        const fileName = document.getElementById("fileName");
+        const downloadBtn = document.getElementById("downloadBtn");
+
+        pdfInput.addEventListener("change", () => {
+            const file = pdfInput.files[0];
+            if (file) {
+                fileName.textContent = `Uploaded: ${file.name}`;
+                submitBtn.disabled = false;
+            } else {
+                fileName.textContent = "";
+                submitBtn.disabled = true;
+            }
+        });
+
+        submitBtn.addEventListener("click", async () => {
+            if (!pdfInput.files.length) return;
+
+            let formData = new FormData();
+            formData.append("pdf", pdfInput.files[0]);
+
+            function getCSRFToken() {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== "") {
+                    let cookies = document.cookie.split(";");
+                    for (let cookie of cookies) {
+                        cookie = cookie.trim();
+                        if (cookie.startsWith("csrftoken=")) {
+                            cookieValue = cookie.substring("csrftoken=".length);
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            submitBtn.disabled = true;
+            loader.style.display = "block";
+            progressBar.style.display = "block";
+            progressFill.style.width = "0%";
+            progressFill.textContent = "0%";
+            mcqResults.innerHTML = "";
+            downloadBtn.style.display = "none";
+
+            let percent = 0;
+            const progressInterval = setInterval(() => {
+                if (percent < 90) {
+                    percent += 5;
+                    progressFill.style.width = `${percent}%`;
+                    progressFill.textContent = `${percent}%`;
+                }
+            }, 150);
+
+            const response = await fetch("/mcq-generator/", {
+                method: "POST",
+                body: formData,
+                headers: { "X-CSRFToken": getCSRFToken() }
+            });
+
+            clearInterval(progressInterval);
+            progressFill.style.width = "100%";
+            progressFill.textContent = "100%";
+
+            const data = await response.json();
+            loader.style.display = "none";
+            submitBtn.disabled = false;
+
+            const mcqArray = data.mcqs.split("\n\n");
+            mcqResults.innerHTML = "<h3>Generated MCQs:</h3>";
+            mcqArray.forEach(mcq => {
+                const mcqItem = document.createElement("div");
+                mcqItem.classList.add("mcq-item");
+                mcqItem.innerHTML = `<p>${mcq.replace(/\n/g, "<br>")}</p>`;
+                mcqResults.appendChild(mcqItem);
+            });
+
+            downloadBtn.style.display = "inline-block";
+
+            setTimeout(() => {
+                progressBar.style.display = "none";
+            }, 1200);
+        });
+
+        downloadBtn.addEventListener("click", () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let y = 10;
+            doc.setFontSize(12);
+            const mcqs = mcqResults.innerText.split("\n");
+
+            mcqs.forEach((line) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 10;
+                }
+                doc.text(line, 10, y);
+                y += 7;
+            });
+
+            doc.save("mcq_results.pdf");
+        });
+    </script>
+
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</body>
+
+</html>

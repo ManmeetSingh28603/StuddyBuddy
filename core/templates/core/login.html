@@ -1,0 +1,55 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-[#1d1d1d]">
+    <div class="bg-[#262626] p-8 rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+        <h2 class="text-3xl font-bold text-center text-[#66ff66] mb-6">Login to Study Buddy</h2>
+
+        {% if messages %}
+        <div
+            class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-bounce-in">
+            {% for message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            <div>
+                <label class="block text-gray-300 mb-1">Username</label>
+                <input type="text" name="username" required
+                    class="w-full px-4 py-2 rounded bg-[#333] text-white focus:outline-none focus:ring-2 focus:ring-[#66ff66]">
+            </div>
+            <div>
+                <label class="block text-gray-300 mb-1">Password</label>
+                <input type="password" name="password" required
+                    class="w-full px-4 py-2 rounded bg-[#333] text-white focus:outline-none focus:ring-2 focus:ring-[#66ff66]">
+            </div>
+            <button type="submit"
+                class="w-full bg-[#66ff66] hover:bg-[#55dd55] text-black font-bold py-2 px-4 rounded transition-all">Login</button>
+        </form>
+
+        <p class="text-center text-sm text-gray-400 mt-6">Don't have an account? <a href="{% url 'signup' %}"
+                class="text-[#66ff66] font-semibold hover:underline">Sign up</a></p>
+    </div>
+</div>
+
+<style>
+    @keyframes fade-in {
+        0% {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .animate-fade-in {
+        animation: fade-in 0.5s ease-out;
+    }
+</style>
+{% endblock %}
